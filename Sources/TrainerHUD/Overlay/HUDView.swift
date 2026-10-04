@@ -106,9 +106,10 @@ struct HUDView: View {
                 else if zone.index > 0 { label("Z\(zone.index)", color: zone.color) }
             }
             HStack(alignment: .firstTextBaseline, spacing: 3 * k) {
-                big("\(state.power3s)", size: 40)
+                big("\(state.power3s)", size: 34)
                 unit("W")
             }
+            .fixedSize()
             ZoneBar(fraction: min(Double(state.power3s) / Double(max(settings.ftpWatts, 1)) / 1.5, 1), color: zone.color, k: k)
                 .frame(width: 96 * k)
         }
