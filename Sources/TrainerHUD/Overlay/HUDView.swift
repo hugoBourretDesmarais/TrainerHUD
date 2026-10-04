@@ -59,6 +59,7 @@ struct HUDView: View {
         .padding(.vertical, 9 * k)
         .padding(.top, hovering ? 6 * k : 0)
         .background(chrome)
+        .overlay(WindowDragHandle())
         .overlay(alignment: .topTrailing) { if hovering { toolbar } }
         .overlay(alignment: .top) {
             if hovering {
@@ -348,8 +349,11 @@ struct HUDView: View {
         .padding(.horizontal, 14 * k)
         .padding(.vertical, 7 * k)
         .background(
-            Capsule().fill(Color.black.opacity(settings.overlayOpacity))
-                .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 1))
+            ZStack {
+                Capsule().fill(Color.black.opacity(settings.overlayOpacity))
+                    .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 1))
+                WindowDragHandle()
+            }
         )
         .fixedSize()
     }
@@ -374,6 +378,16 @@ struct HUDView: View {
         .buttonStyle(.plain)
         .help(help)
     }
+}
+
+private struct WindowDragHandle: NSViewRepresentable {
+    final class DragView: NSView {
+        override var mouseDownCanMoveWindow: Bool { true }
+        override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
+    }
+
+    func makeNSView(context: Context) -> NSView { DragView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
 private struct WorkoutProfile: View {
