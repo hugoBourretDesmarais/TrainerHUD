@@ -162,7 +162,7 @@ struct SettingsView: View {
                 Slider(value: $settings.overlayOpacity, in: 0.0...1.0, step: 0.05) { Text("Background darkness") }
                 Toggle("Click-through (ignore mouse; hover controls disabled)", isOn: Binding(get: { settings.overlayLocked }, set: { overlay.applyLock($0) }))
                 Picker("Mode", selection: $settings.overlayMode) { ForEach(OverlayMode.allCases, id: \.self) { Text($0.label).tag($0) } }.pickerStyle(.segmented)
-                Text("Drag the overlay anywhere by its background. Hover it for the mode button, or press ⌘M to cycle Minimal / Standard / Full.").font(.caption).foregroundStyle(.secondary)
+                Text("Drag the overlay anywhere by its background. Hover it for the mode button, or press ⌃⇧M anywhere to cycle Minimal / Standard / Full.").font(.caption).foregroundStyle(.secondary)
                 Button("Reset position") { overlay.centerTop() }
             }
             Section("Fields") {

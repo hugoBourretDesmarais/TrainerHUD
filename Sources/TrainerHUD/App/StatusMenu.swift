@@ -34,12 +34,12 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(header)
         menu.addItem(.separator())
 
-        menu.addItem(make("Shift Up", #selector(shiftUp), key: String(UnicodeScalar(NSUpArrowFunctionKey)!), mask: [.command]))
-        menu.addItem(make("Shift Down", #selector(shiftDown), key: String(UnicodeScalar(NSDownArrowFunctionKey)!), mask: [.command]))
-        menu.addItem(make(String(format: "Grade %+.1f%%  →  +0.5", s.gradePercent), #selector(gradeUp), key: "=", mask: [.command]))
-        menu.addItem(make("Grade  −0.5", #selector(gradeDown), key: "-", mask: [.command]))
+        menu.addItem(hot("Shift Up", #selector(shiftUp), .shiftUp))
+        menu.addItem(hot("Shift Down", #selector(shiftDown), .shiftDown))
+        menu.addItem(hot(String(format: "Grade %+.1f%%  →  +0.5", s.gradePercent), #selector(gradeUp), .gradeUp))
+        menu.addItem(hot("Grade  −0.5", #selector(gradeDown), .gradeDown))
         menu.addItem(make("Grade  0%", #selector(gradeReset), key: "0", mask: [.command]))
-        let erg = make(s.mode == .erg ? "ERG mode  (\(s.ergTarget) W)  ✓" : "ERG mode  (\(s.ergTarget) W)", #selector(toggleErg), key: "e", mask: [.command])
+        let erg = hot(s.mode == .erg ? "ERG mode  (\(s.ergTarget) W)  ✓" : "ERG mode  (\(s.ergTarget) W)", #selector(toggleErg), .toggleErg)
         menu.addItem(erg)
         if s.mode == .erg {
             menu.addItem(make("ERG target +5 W", #selector(ergUp), key: "]", mask: [.command]))
@@ -60,8 +60,8 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(devices)
         menu.addItem(.separator())
 
-        menu.addItem(make(session.settings.overlayVisible ? "Hide Overlay" : "Show Overlay", #selector(toggleOverlay), key: "h", mask: [.command]))
-        menu.addItem(make("Overlay: \(session.settings.overlayMode.label)  →  \(session.settings.overlayMode.next.label)", #selector(toggleMinimize), key: "m", mask: [.command]))
+        menu.addItem(hot(session.settings.overlayVisible ? "Hide Overlay" : "Show Overlay", #selector(toggleOverlay), .toggleOverlay))
+        menu.addItem(make("Overlay: \(session.settings.overlayMode.label)  →  \(session.settings.overlayMode.next.label)", #selector(toggleMinimize), key: HotKeys.key(for: .minimizeOverlay)!, mask: HotKeys.modifiers))
         let ct = make("Click-through (ignore mouse)", #selector(toggleLock), key: "l", mask: [.command])
         ct.state = session.settings.overlayLocked ? .on : .off
         menu.addItem(ct)
@@ -81,9 +81,9 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             let info = NSMenuItem(title: "\(w.steps.count) steps · \(RideState.clock(w.totalDuration)) · step \((pos?.index ?? 0) + 1)", action: nil, keyEquivalent: "")
             info.isEnabled = false
             m.addItem(info)
-            m.addItem(make(s.workoutPaused ? "Resume" : "Pause", #selector(workoutPause), key: "", mask: []))
-            m.addItem(make("Next Step", #selector(workoutNext), key: String(UnicodeScalar(NSRightArrowFunctionKey)!), mask: [.command]))
-            m.addItem(make("Previous Step", #selector(workoutBack), key: String(UnicodeScalar(NSLeftArrowFunctionKey)!), mask: [.command]))
+            m.addItem(hot(s.workoutPaused ? "Resume" : "Pause", #selector(workoutPause), .workoutPause))
+            m.addItem(hot("Next Step", #selector(workoutNext), .workoutSkip))
+            m.addItem(hot("Previous Step", #selector(workoutBack), .workoutBack))
             m.addItem(make("Stop Workout", #selector(workoutStop), key: "", mask: []))
             m.addItem(.separator())
         }
@@ -157,6 +157,10 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         rescan.target = self
         m.addItem(rescan)
         return m
+    }
+
+    private func hot(_ title: String, _ sel: Selector, _ action: ButtonAction) -> NSMenuItem {
+        make(title, sel, key: HotKeys.key(for: action) ?? "", mask: HotKeys.modifiers)
     }
 
     private func make(_ title: String, _ sel: Selector, key: String, mask: NSEvent.ModifierFlags) -> NSMenuItem {

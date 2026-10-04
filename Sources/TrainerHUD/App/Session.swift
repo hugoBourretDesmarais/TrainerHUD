@@ -140,6 +140,7 @@ final class Session {
         case .ergDown: setErgTarget(state.ergTarget - 5)
         case .workoutPause: toggleWorkoutPause()
         case .workoutSkip: skipWorkoutStep(forward: true)
+        case .workoutBack: skipWorkoutStep(forward: false)
         }
     }
 

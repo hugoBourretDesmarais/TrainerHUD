@@ -360,7 +360,7 @@ struct HUDView: View {
 
     private var toolbar: some View {
         HStack(spacing: 3 * k) {
-            toolButton(settings.overlayMode == .full ? "minus" : "plus", help: "Next mode (⌘M)") { settings.overlayMode = settings.overlayMode.next }
+            toolButton(settings.overlayMode == .full ? "minus" : "plus", help: "Next mode (⌃⇧M)") { settings.overlayMode = settings.overlayMode.next }
             toolButton("xmark", help: "Quit TrainerHUD") { onQuit() }
         }
         .padding(5 * k)

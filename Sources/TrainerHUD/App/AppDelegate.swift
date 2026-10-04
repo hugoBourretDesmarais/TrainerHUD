@@ -4,6 +4,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var session: Session!
     private var overlay: OverlayController!
     private var menu: StatusMenuController!
+    private var hotKeys: HotKeys?
 
     override init() {
         super.init()
@@ -70,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         overlay = OverlayController(session: session)
         session.overlay = overlay
         menu = StatusMenuController(session: session, overlay: overlay)
+        hotKeys = HotKeys { [weak self] in self?.session.perform($0) }
         NSApp.servicesProvider = nil
     }
 
