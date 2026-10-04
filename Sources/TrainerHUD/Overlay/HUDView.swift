@@ -14,7 +14,7 @@ struct HUDView: View {
 
     var body: some View {
         Group {
-            if settings.overlayMinimized { minimized } else { expanded }
+            if settings.overlayMode == .minimal { minimized } else { expanded }
         }
         .onHover { hovering = $0 }
         .onReceive(clockTimer) { clock = $0 }
@@ -32,6 +32,7 @@ struct HUDView: View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 0) {
                 if settings.showPower { powerCell; divider }
+                if state.workout != nil { workoutCell; divider }
                 if settings.showHeartRate { heartCell; divider }
                 if settings.showCadence { cadenceCell; divider }
                 if settings.showGear { gearCell; divider }
@@ -43,6 +44,7 @@ struct HUDView: View {
                 if settings.showClock { smallCell(label: "CLOCK", value: clockString, unit: "", dim: true) }
                 statusColumn.padding(.leading, 10 * k).frame(height: cellHeight, alignment: .top)
             }
+            if settings.overlayMode == .full { fullRow.padding(.top, 6 * k) }
             if let toast = state.toast {
                 Text(toast)
                     .font(.system(size: 10.5 * k, weight: .semibold, design: .rounded))
@@ -85,16 +87,83 @@ struct HUDView: View {
     // MARK: Cells
 
     private func label(_ s: String, color: Color = .white.opacity(0.5)) -> some View {
-        Text(s).font(.system(size: 8.5 * k, weight: .bold, design: .rounded)).tracking(1.4).foregroundStyle(color)
+        Text(s).font(.system(size: 8.5 * k, weight: .bold, design: .rounded)).tracking(1.4).foregroundStyle(color).lineLimit(1).fixedSize()
     }
 
     private func big(_ s: String, size: CGFloat, color: Color = .white) -> some View {
         Text(s).font(.system(size: size * k, weight: .heavy, design: .rounded)).monospacedDigit()
-            .foregroundStyle(color).lineLimit(1)
+            .foregroundStyle(color).lineLimit(1).fixedSize()
     }
 
     private func unit(_ s: String) -> some View {
-        Text(s).font(.system(size: 10 * k, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.5))
+        Text(s).font(.system(size: 10 * k, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.5)).lineLimit(1).fixedSize()
+    }
+
+    private var target: Int? { state.workoutTargetWatts(ftp: settings.ftpWatts) }
+
+    static func compliance(_ w: Int, target: Int) -> Color {
+        guard w > 0, target > 0 else { return .white }
+        let r = Double(w) / Double(target)
+        if r < 0.95 { return Color(hue: 0.11, saturation: 0.9, brightness: 1) }
+        if r > 1.05 { return Color(hue: 0.0, saturation: 0.75, brightness: 1) }
+        return Color(hue: 0.38, saturation: 0.75, brightness: 0.95)
+    }
+
+    private var workoutCell: some View {
+        let w = state.workout!
+        let pos = state.workoutPosition
+        let step = pos.map { w.steps[$0.index] }
+        let remaining = pos.map { w.steps[$0.index].duration - $0.offset } ?? 0
+        let next = pos.flatMap { $0.index + 1 < w.steps.count ? w.steps[$0.index + 1] : nil }
+        let color = step.map { $0.isFree ? Color.white : Zones.power(Int($0.fraction(at: pos!.offset) * 100), ftp: 100).color } ?? .white
+        return VStack(alignment: .leading, spacing: 2 * k) {
+            HStack(spacing: 5 * k) {
+                label("STEP \((pos?.index ?? w.steps.count - 1) + 1)/\(w.steps.count)")
+                if let step { label(step.label.uppercased(), color: color) }
+                if state.workoutPaused { label("PAUSED", color: .orange) }
+                else if !state.timerRunning { label("PEDAL TO START", color: .white.opacity(0.35)) }
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 3 * k) {
+                big(RideState.clock(remaining), size: 30, color: state.workoutPaused ? .white.opacity(0.4) : color)
+                if let next {
+                    unit("then \(next.isFree ? "free" : "\(Int((next.start * Double(settings.ftpWatts)).rounded()))W") · \(RideState.clock(next.duration))")
+                }
+            }
+            .fixedSize()
+            ZoneBar(fraction: step.map { 1 - remaining / max($0.duration, 1) } ?? 1, color: color, k: k)
+                .frame(width: 96 * k)
+        }
+        .frame(height: cellHeight, alignment: .top)
+    }
+
+    private var fullRow: some View {
+        HStack(alignment: .top, spacing: 0) {
+            if let w = state.workout {
+                VStack(alignment: .leading, spacing: 3 * k) {
+                    HStack(spacing: 6 * k) {
+                        label(w.name.uppercased(), color: .white.opacity(0.7))
+                        label("\(RideState.clock(max(0, w.totalDuration - state.workoutElapsed))) LEFT")
+                    }
+                    WorkoutProfile(workout: w, elapsed: state.workoutElapsed, k: k)
+                        .frame(width: 380 * k, height: 34 * k)
+                }
+                divider
+            } else {
+                VStack(alignment: .leading, spacing: 3 * k) {
+                    label("WORKOUT")
+                    Text("None for today · ask Claude to sync COROS, or ⌘O to load a .zwo")
+                        .font(.system(size: 10 * k, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.45))
+                }
+                .frame(height: 46 * k, alignment: .top)
+                divider
+            }
+            smallCell(label: "AVG", value: "\(state.avgPower)", unit: "W")
+            smallCell(label: "NP", value: state.normalizedPower > 0 ? "\(state.normalizedPower)" : "—", unit: "W")
+            smallCell(label: "WORK", value: "\(Int(state.kilojoules))", unit: "kJ")
+            if !settings.showDistance { smallCell(label: "DIST", value: String(format: "%.1f", state.distanceKm), unit: "km") }
+            smallCell(label: "AVG HR", value: state.avgHeartRate > 0 ? "\(state.avgHeartRate)" : "—", unit: "bpm")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var powerCell: some View {
@@ -102,11 +171,12 @@ struct HUDView: View {
         return VStack(alignment: .leading, spacing: 2 * k) {
             HStack(spacing: 5 * k) {
                 label("POWER")
-                if state.mode == .erg { label("ERG \(state.ergTarget)W", color: .orange) }
+                if let t = target { label("→ \(t)W", color: state.mode == .erg ? .orange : .white.opacity(0.8)) }
+                else if state.mode == .erg { label("ERG \(state.ergTarget)W", color: .orange) }
                 else if zone.index > 0 { label("Z\(zone.index)", color: zone.color) }
             }
             HStack(alignment: .firstTextBaseline, spacing: 3 * k) {
-                big("\(state.power3s)", size: 34)
+                big("\(state.power3s)", size: 34, color: target.map { Self.compliance(state.power3s, target: $0) } ?? .white)
                 unit("W")
             }
             .fixedSize()
@@ -242,8 +312,14 @@ struct HUDView: View {
             }
             if settings.showPower {
                 HStack(alignment: .firstTextBaseline, spacing: 2 * k) {
-                    Text("\(state.power3s)").foregroundStyle(pz.index > 0 ? pz.color : .white)
-                    Text("W").font(.system(size: 9 * k, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.5))
+                    Text("\(state.power3s)").foregroundStyle(target.map { Self.compliance(state.power3s, target: $0) } ?? (pz.index > 0 ? pz.color : .white))
+                    Text(target.map { "/\($0) W" } ?? "W").font(.system(size: 9 * k, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.5))
+                }
+            }
+            if let w = state.workout, let pos = state.workoutPosition {
+                HStack(alignment: .firstTextBaseline, spacing: 3 * k) {
+                    Text(RideState.clock(w.steps[pos.index].duration - pos.offset)).foregroundStyle(.white.opacity(state.workoutPaused ? 0.4 : 0.9))
+                    Text("\(pos.index + 1)/\(w.steps.count)").font(.system(size: 9 * k, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.5))
                 }
             }
             if settings.showHeartRate {
@@ -259,7 +335,7 @@ struct HUDView: View {
                 }
             }
             if settings.showTime { Text(state.elapsedString).foregroundStyle(.white.opacity(0.7)) }
-            Button { settings.overlayMinimized = false } label: {
+            Button { settings.overlayMode = .standard } label: {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 9 * k, weight: .black))
                     .foregroundStyle(.white.opacity(hovering ? 0.9 : 0.35))
@@ -280,7 +356,7 @@ struct HUDView: View {
 
     private var toolbar: some View {
         HStack(spacing: 3 * k) {
-            toolButton("minus", help: "Minimize") { settings.overlayMinimized = true }
+            toolButton(settings.overlayMode == .full ? "minus" : "plus", help: "Next mode (⌘M)") { settings.overlayMode = settings.overlayMode.next }
             toolButton("xmark", help: "Quit TrainerHUD") { onQuit() }
         }
         .padding(5 * k)
@@ -297,6 +373,38 @@ struct HUDView: View {
         }
         .buttonStyle(.plain)
         .help(help)
+    }
+}
+
+private struct WorkoutProfile: View {
+    let workout: Workout
+    let elapsed: TimeInterval
+    let k: CGFloat
+
+    var body: some View {
+        Canvas { ctx, size in
+            let total = max(workout.totalDuration, 1)
+            let peak = max(workout.steps.map { max($0.start, $0.end) }.max() ?? 1, 1.2)
+            var x0: CGFloat = 0
+            for step in workout.steps {
+                let w = size.width * step.duration / total
+                let h0 = size.height * (step.isFree ? 0.35 : step.start / peak)
+                let h1 = size.height * (step.isFree ? 0.35 : step.end / peak)
+                var p = Path()
+                p.move(to: CGPoint(x: x0, y: size.height))
+                p.addLine(to: CGPoint(x: x0, y: size.height - h0))
+                p.addLine(to: CGPoint(x: x0 + w, y: size.height - h1))
+                p.addLine(to: CGPoint(x: x0 + w, y: size.height))
+                p.closeSubpath()
+                let color = step.isFree ? Color.white.opacity(0.3) : Zones.power(Int((step.start + step.end) * 50), ftp: 100).color
+                ctx.fill(p, with: .color(color.opacity(0.85)))
+                x0 += w
+            }
+            let cx = size.width * min(elapsed / total, 1)
+            ctx.fill(Path(CGRect(x: 0, y: 0, width: cx, height: size.height)), with: .color(.black.opacity(0.55)))
+            ctx.fill(Path(CGRect(x: cx - k, y: 0, width: 2 * k, height: size.height)), with: .color(.white))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 3 * k))
     }
 }
 

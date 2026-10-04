@@ -37,6 +37,10 @@ final class RideState: ObservableObject {
     @Published var avgPower: Int = 0
     @Published var avgHeartRate: Int = 0
     @Published var maxHeartRate: Int = 0
+    @Published var normalizedPower: Int = 0
+    @Published var workout: Workout?
+    @Published var workoutElapsed: TimeInterval = 0
+    @Published var workoutPaused = false
     @Published var lastShift: (up: Bool, at: Date)?
     @Published var toast: String?
 
@@ -55,6 +59,9 @@ final class RideState: ObservableObject {
     private var powerSamples = 0
     private var hrSum: Double = 0
     private var hrSamples = 0
+    private var npWindow: [Int] = []
+    private var np4Sum: Double = 0
+    private var np4Samples = 0
     private var lastTick = Date()
     private var lastActivity = Date.distantPast
     private var toastTimer: Timer?
@@ -82,6 +89,13 @@ final class RideState: ObservableObject {
         if active && !timerRunning && elapsed == 0 { timerRunning = true }
         if timerRunning && active {
             elapsed += dt
+            if workout != nil && !workoutPaused { workoutElapsed += dt }
+            npWindow.append(power)
+            if npWindow.count > 30 { npWindow.removeFirst() }
+            if npWindow.count == 30 {
+                np4Sum += pow(Double(npWindow.reduce(0, +)) / 30, 4); np4Samples += 1
+                normalizedPower = Int(pow(np4Sum / Double(np4Samples), 0.25).rounded())
+            }
             distanceKm += speedKmh * dt / 3600
             kilojoules += Double(power) * dt / 1000
             powerSum += Double(power); powerSamples += 1
@@ -106,6 +120,8 @@ final class RideState: ObservableObject {
         maxHeartRate = 0
         powerSum = 0; powerSamples = 0
         hrSum = 0; hrSamples = 0
+        npWindow = []; np4Sum = 0; np4Samples = 0; normalizedPower = 0
+        workoutElapsed = 0
         timerRunning = false
         showToast("Ride reset")
     }
@@ -118,9 +134,18 @@ final class RideState: ObservableObject {
         }
     }
 
-    var elapsedString: String {
-        let t = Int(elapsed)
+    var elapsedString: String { Self.clock(elapsed.rounded(.down)) }
+
+    static func clock(_ seconds: TimeInterval) -> String {
+        let t = max(0, Int(seconds.rounded(.up)))
         if t >= 3600 { return String(format: "%d:%02d:%02d", t / 3600, (t % 3600) / 60, t % 60) }
         return String(format: "%02d:%02d", t / 60, t % 60)
+    }
+
+    var workoutPosition: (index: Int, offset: TimeInterval)? { workout?.position(at: workoutElapsed) }
+
+    func workoutTargetWatts(ftp: Int) -> Int? {
+        guard let w = workout, let p = workoutPosition, !w.steps[p.index].isFree else { return nil }
+        return Int((w.steps[p.index].fraction(at: p.offset) * Double(ftp)).rounded())
     }
 }

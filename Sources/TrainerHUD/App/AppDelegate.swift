@@ -18,7 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // trainerhud://shift-up | shift-down | gear/12 | grade/+0.5 | grade/3 | erg/on | erg/off | erg/220
-    //            | timer/toggle | ride/reset | overlay/toggle | overlay/minimize | overlay/expand | overlay/lock | overlay/unlock
+    //            | workout/load/<abs path> | workout/today | workout/pause | workout/next | workout/back | workout/stop
+    //            | timer/toggle | ride/reset | overlay/toggle | overlay/minimal | overlay/standard | overlay/full | overlay/cycle | overlay/lock | overlay/unlock
     private func handle(_ url: URL) {
         guard let session, url.scheme == "trainerhud" else { return }
         let host = url.host ?? ""
@@ -35,14 +36,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if arg == "on" { session.setErg(enabled: true) }
             else if arg == "off" { session.setErg(enabled: false) }
             else if let w = Int(arg) { session.setErgTarget(w); session.setErg(enabled: true) }
+        case "workout":
+            switch arg {
+            case "today": session.loadTodaysWorkout(force: true)
+            case "pause": session.toggleWorkoutPause()
+            case "next": session.skipWorkoutStep(forward: true)
+            case "back": session.skipWorkoutStep(forward: false)
+            case "stop": session.stopWorkout()
+            default:
+                if arg.hasPrefix("load/") { session.loadWorkout(URL(fileURLWithPath: "/" + arg.dropFirst(5).trimmingCharacters(in: CharacterSet(charactersIn: "/")))) }
+            }
         case "timer": session.perform(.toggleTimer)
         case "ride": session.state.resetRide()
         case "overlay":
             switch arg {
             case "lock": overlay.applyLock(true)
             case "unlock": overlay.applyLock(false)
-            case "minimize": session.settings.overlayMinimized = true
-            case "expand": session.settings.overlayMinimized = false
+            case "minimize", "minimal": session.settings.overlayMode = .minimal
+            case "expand", "standard": session.settings.overlayMode = .standard
+            case "full": session.settings.overlayMode = .full
+            case "cycle": session.settings.overlayMode = session.settings.overlayMode.next
             case "show": overlay.setVisible(true)
             case "hide": overlay.setVisible(false)
             default: overlay.toggleVisible()

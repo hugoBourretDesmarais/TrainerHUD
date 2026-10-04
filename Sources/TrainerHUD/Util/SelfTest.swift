@@ -7,6 +7,28 @@ enum SelfTest {
             if cond() { print("ok   \(name)") } else { failures += 1; print("FAIL \(name) \(detail())") }
         }
 
+        let zwo = """
+        <workout_file><name>Test 3x1</name><sportType>bike</sportType><workout>
+        <Warmup Duration="600" PowerLow="0.5" PowerHigh="0.7"/>
+        <IntervalsT Repeat="3" OnDuration="60" OffDuration="30" OnPower="1.2" OffPower="0.5"/>
+        <SteadyState Duration="300" Power="0.9"/>
+        <FreeRide Duration="120"/>
+        <Cooldown Duration="300" PowerLow="0.6" PowerHigh="0.4"/>
+        </workout></workout_file>
+        """
+        let wo = ZWOParser.parse(Data(zwo.utf8))
+        check("zwo parse", wo?.name == "Test 3x1" && wo?.steps.count == 10, "\(String(describing: wo?.steps.count))")
+        check("zwo duration", wo?.totalDuration == 600 + 270 + 300 + 120 + 300, "\(String(describing: wo?.totalDuration))")
+        if let wo {
+            check("zwo ramp mid", abs(wo.steps[0].fraction(at: 300) - 0.6) < 1e-9)
+            let p = wo.position(at: 600 + 60 + 10)
+            check("zwo position", p?.index == 2 && p?.offset == 10 && wo.steps[2].kind == .off, "\(String(describing: p))")
+            check("zwo free", wo.steps[8].isFree)
+            check("zwo end", wo.position(at: wo.totalDuration) == nil)
+            let rs = RideState(); rs.workout = wo; rs.workoutElapsed = 600 + 5
+            check("zwo target", rs.workoutTargetWatts(ftp: 250) == 300, "\(String(describing: rs.workoutTargetWatts(ftp: 250)))")
+        }
+
         let gear = ZwiftMessages.gear(ratioX10000: 24000)
         check("gear 2.40", gear == Data(hex: "04 2A 04 10 C0 BB 01"), gear.hexString)
 

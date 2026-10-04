@@ -51,13 +51,17 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(make("Reset Ride", #selector(resetRide), key: "r", mask: [.command, .shift]))
         menu.addItem(.separator())
 
+        let workout = NSMenuItem(title: s.workout.map { "Workout: \($0.name)" } ?? "Workout", action: nil, keyEquivalent: "")
+        workout.submenu = buildWorkoutMenu()
+        menu.addItem(workout)
+
         let devices = NSMenuItem(title: "Devices", action: nil, keyEquivalent: "")
         devices.submenu = buildDevicesMenu()
         menu.addItem(devices)
         menu.addItem(.separator())
 
         menu.addItem(make(session.settings.overlayVisible ? "Hide Overlay" : "Show Overlay", #selector(toggleOverlay), key: "h", mask: [.command]))
-        menu.addItem(make(session.settings.overlayMinimized ? "Expand Overlay" : "Minimize Overlay", #selector(toggleMinimize), key: "m", mask: [.command]))
+        menu.addItem(make("Overlay: \(session.settings.overlayMode.label)  →  \(session.settings.overlayMode.next.label)", #selector(toggleMinimize), key: "m", mask: [.command]))
         let ct = make("Click-through (ignore mouse)", #selector(toggleLock), key: "l", mask: [.command])
         ct.state = session.settings.overlayLocked ? .on : .off
         menu.addItem(ct)
@@ -67,6 +71,40 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(make("Log…", #selector(openLog), key: "", mask: []))
         menu.addItem(.separator())
         menu.addItem(make("Quit TrainerHUD", #selector(quit), key: "q", mask: [.command]))
+    }
+
+    private func buildWorkoutMenu() -> NSMenu {
+        let m = NSMenu()
+        let s = session.state
+        if let w = s.workout {
+            let pos = s.workoutPosition
+            let info = NSMenuItem(title: "\(w.steps.count) steps · \(RideState.clock(w.totalDuration)) · step \((pos?.index ?? 0) + 1)", action: nil, keyEquivalent: "")
+            info.isEnabled = false
+            m.addItem(info)
+            m.addItem(make(s.workoutPaused ? "Resume" : "Pause", #selector(workoutPause), key: "", mask: []))
+            m.addItem(make("Next Step", #selector(workoutNext), key: String(UnicodeScalar(NSRightArrowFunctionKey)!), mask: [.command]))
+            m.addItem(make("Previous Step", #selector(workoutBack), key: String(UnicodeScalar(NSLeftArrowFunctionKey)!), mask: [.command]))
+            m.addItem(make("Stop Workout", #selector(workoutStop), key: "", mask: []))
+            m.addItem(.separator())
+        }
+        m.addItem(make("Load .zwo…", #selector(workoutLoad), key: "o", mask: [.command]))
+        m.addItem(make("Reload Today's Workout", #selector(workoutReload), key: "", mask: []))
+        m.addItem(make("Open Workouts Folder", #selector(workoutFolder), key: "", mask: []))
+        return m
+    }
+
+    @objc private func workoutPause() { session.toggleWorkoutPause() }
+    @objc private func workoutNext() { session.skipWorkoutStep(forward: true) }
+    @objc private func workoutBack() { session.skipWorkoutStep(forward: false) }
+    @objc private func workoutStop() { session.stopWorkout() }
+    @objc private func workoutReload() { session.loadTodaysWorkout(force: true) }
+    @objc private func workoutFolder() { NSWorkspace.shared.open(WorkoutLibrary.folder) }
+    @objc private func workoutLoad() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.init(filenameExtension: "zwo")!]
+        panel.directoryURL = WorkoutLibrary.folder
+        NSApp.activate(ignoringOtherApps: true)
+        if panel.runModal() == .OK, let url = panel.url { session.loadWorkout(url) }
     }
 
     private func buildDevicesMenu() -> NSMenu {
@@ -140,7 +178,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     @objc private func resetRide() { session.state.resetRide() }
     @objc private func toggleOverlay() { overlay.toggleVisible() }
     @objc private func toggleLock() { overlay.applyLock(!session.settings.overlayLocked) }
-    @objc private func toggleMinimize() { session.settings.overlayMinimized.toggle() }
+    @objc private func toggleMinimize() { session.settings.overlayMode = session.settings.overlayMode.next }
     @objc private func resetPosition() { overlay.centerTop() }
     @objc private func openSettings() { settingsWindow.show() }
     @objc private func openLog() { logWindow.show() }

@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 enum ButtonAction: String, CaseIterable, Codable {
-    case none, shiftUp, shiftDown, gradeUp, gradeDown, gradeReset, toggleTimer, resetRide, toggleOverlay, minimizeOverlay, toggleErg, ergUp, ergDown
+    case none, shiftUp, shiftDown, gradeUp, gradeDown, gradeReset, toggleTimer, resetRide, toggleOverlay, minimizeOverlay, toggleErg, ergUp, ergDown, workoutPause, workoutSkip
 
     var label: String {
         switch self {
@@ -15,10 +15,12 @@ enum ButtonAction: String, CaseIterable, Codable {
         case .toggleTimer: return "Pause / resume timer"
         case .resetRide: return "Reset ride"
         case .toggleOverlay: return "Show / hide overlay"
-        case .minimizeOverlay: return "Minimize / expand overlay"
+        case .minimizeOverlay: return "Cycle overlay mode"
         case .toggleErg: return "Toggle ERG mode"
         case .ergUp: return "ERG target +5 W"
         case .ergDown: return "ERG target −5 W"
+        case .workoutPause: return "Workout start / pause"
+        case .workoutSkip: return "Workout next step"
         }
     }
 }
@@ -44,6 +46,20 @@ enum GearScaling: String, CaseIterable, Codable {
         case .relativeToPhysical: return "Scale by physical gear (QZ style)"
         }
     }
+}
+
+enum OverlayMode: String, CaseIterable, Codable {
+    case minimal, standard, full
+
+    var label: String {
+        switch self {
+        case .minimal: return "Minimal"
+        case .standard: return "Standard"
+        case .full: return "Full"
+        }
+    }
+
+    var next: OverlayMode { OverlayMode.allCases[(OverlayMode.allCases.firstIndex(of: self)! + 1) % OverlayMode.allCases.count] }
 }
 
 final class Settings: ObservableObject {
@@ -77,7 +93,7 @@ final class Settings: ObservableObject {
     @Published var overlayScale: Double { didSet { save() } }
     @Published var overlayOpacity: Double { didSet { save() } }
     @Published var overlayLocked: Bool { didSet { save() } }
-    @Published var overlayMinimized: Bool { didSet { save() } }
+    @Published var overlayMode: OverlayMode { didSet { save() } }
     @Published var overlayVisible: Bool { didSet { save() } }
     @Published var overlayFrame: CGRect? { didSet { save() } }
     @Published var showPower: Bool { didSet { save() } }
@@ -127,7 +143,7 @@ final class Settings: ObservableObject {
         overlayScale = dbl("overlayScale", 1.0)
         overlayOpacity = dbl("overlayOpacity2", 0.45)
         overlayLocked = bool("overlayClickThrough", false)
-        overlayMinimized = bool("overlayMinimized", false)
+        overlayMode = OverlayMode(rawValue: d.string(forKey: "overlayMode") ?? "") ?? (bool("overlayMinimized", false) ? .minimal : .standard)
         overlayVisible = bool("overlayVisible", true)
         if let arr = d.array(forKey: "overlayFrame") as? [Double], arr.count == 4 {
             overlayFrame = CGRect(x: arr[0], y: arr[1], width: arr[2], height: arr[3])
@@ -186,7 +202,7 @@ final class Settings: ObservableObject {
         d.set(overlayScale, forKey: "overlayScale")
         d.set(overlayOpacity, forKey: "overlayOpacity2")
         d.set(overlayLocked, forKey: "overlayClickThrough")
-        d.set(overlayMinimized, forKey: "overlayMinimized")
+        d.set(overlayMode.rawValue, forKey: "overlayMode")
         d.set(overlayVisible, forKey: "overlayVisible")
         if let f = overlayFrame {
             d.set([f.origin.x, f.origin.y, f.width, f.height], forKey: "overlayFrame")

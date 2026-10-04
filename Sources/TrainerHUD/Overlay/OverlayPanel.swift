@@ -130,7 +130,7 @@ final class OverlayController {
         guard abs(f.width - size.width) > 0.5 || abs(f.height - size.height) > 0.5 else { return }
         let origin = NSPoint(x: f.midX - size.width / 2, y: f.maxY - size.height)
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
-        backdrop.cornerRadius = session.settings.overlayMinimized ? size.height / 2 : 16 * CGFloat(session.settings.overlayScale)
+        backdrop.cornerRadius = session.settings.overlayMode == .minimal ? size.height / 2 : 16 * CGFloat(session.settings.overlayScale)
     }
 
     func reassert() {

@@ -161,8 +161,8 @@ struct SettingsView: View {
                 Slider(value: $settings.overlayScale, in: 0.6...2.0, step: 0.1) { Text("Size \(String(format: "%.1f", settings.overlayScale))×") }
                 Slider(value: $settings.overlayOpacity, in: 0.0...1.0, step: 0.05) { Text("Background darkness") }
                 Toggle("Click-through (ignore mouse; hover controls disabled)", isOn: Binding(get: { settings.overlayLocked }, set: { overlay.applyLock($0) }))
-                Toggle("Minimized", isOn: $settings.overlayMinimized)
-                Text("Drag the overlay anywhere by its background. Hover it for the minimize button.").font(.caption).foregroundStyle(.secondary)
+                Picker("Mode", selection: $settings.overlayMode) { ForEach(OverlayMode.allCases, id: \.self) { Text($0.label).tag($0) } }.pickerStyle(.segmented)
+                Text("Drag the overlay anywhere by its background. Hover it for the mode button, or press ⌘M to cycle Minimal / Standard / Full.").font(.caption).foregroundStyle(.secondary)
                 Button("Reset position") { overlay.centerTop() }
             }
             Section("Fields") {

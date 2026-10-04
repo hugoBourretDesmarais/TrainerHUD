@@ -13,6 +13,9 @@ final class Session {
     private var trainerPowerAt = Date.distantPast
     private var lastTrainerSpeedAt = Date.distantPast
     var onDevicesChanged: (() -> Void)?
+    private let library = WorkoutLibrary()
+    private var lastWorkoutStep: Int?
+    private var dismissedWorkout: URL?
 
     init() {
         state.gearIndex = settings.clampedStartGear
@@ -23,10 +26,13 @@ final class Session {
         ble = BLEManager(session: self)
         ble.onChange = { [weak self] in self?.onDevicesChanged?() }
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.tick() }
+        library.onChange = { [weak self] in self?.loadTodaysWorkout() }
+        loadTodaysWorkout()
     }
 
     private func tick() {
         state.tick()
+        driveWorkout()
         let now = Date()
         for (_, c) in controllers where c.checkStall(now: now) {
             if state.controllerStatuses[c.id.uuidString] != .stalled {
@@ -128,10 +134,98 @@ final class Session {
             state.showToast(state.timerRunning ? "Timer running" : "Timer paused", seconds: 1.5)
         case .resetRide: state.resetRide()
         case .toggleOverlay: overlay?.toggleVisible()
-        case .minimizeOverlay: settings.overlayMinimized.toggle()
+        case .minimizeOverlay: settings.overlayMode = settings.overlayMode.next
         case .toggleErg: setErg(enabled: state.mode != .erg)
         case .ergUp: setErgTarget(state.ergTarget + 5)
         case .ergDown: setErgTarget(state.ergTarget - 5)
+        case .workoutPause: toggleWorkoutPause()
+        case .workoutSkip: skipWorkoutStep(forward: true)
+        }
+    }
+
+    // MARK: Workout
+
+    func loadTodaysWorkout(force: Bool = false) {
+        guard let url = WorkoutLibrary.todays() else {
+            if force { state.showToast("No workout for today in the workouts folder") }
+            return
+        }
+        if !force {
+            if url == dismissedWorkout { return }
+            if let cur = state.workout?.source, cur == url, WorkoutLibrary.modDate(url) <= loadedAt { return }
+        }
+        loadWorkout(url)
+    }
+
+    private var loadedAt = Date.distantPast
+
+    func loadWorkout(_ url: URL) {
+        guard let w = ZWOParser.load(url) else {
+            Log.warn("Workout: could not parse \(url.lastPathComponent)")
+            state.showToast("Can't read \(url.lastPathComponent)")
+            return
+        }
+        loadedAt = Date()
+        dismissedWorkout = nil
+        state.workout = w
+        state.workoutElapsed = 0
+        state.workoutPaused = false
+        lastWorkoutStep = nil
+        Log.info("Workout loaded: \(w.name), \(w.steps.count) steps, \(RideState.clock(w.totalDuration))")
+        state.showToast("Workout: \(w.name) · \(RideState.clock(w.totalDuration)) · starts when you pedal", seconds: 4)
+    }
+
+    func stopWorkout() {
+        dismissedWorkout = state.workout?.source
+        state.workout = nil
+        state.workoutElapsed = 0
+        lastWorkoutStep = nil
+        if state.mode == .erg { setErg(enabled: false) }
+    }
+
+    func toggleWorkoutPause() {
+        guard state.workout != nil else { return }
+        state.workoutPaused.toggle()
+        state.showToast(state.workoutPaused ? "Workout paused" : "Workout resumed", seconds: 1.5)
+        if state.workoutPaused, state.mode == .erg { setErg(enabled: false) }
+        if !state.workoutPaused { lastWorkoutStep = nil }
+    }
+
+    func skipWorkoutStep(forward: Bool) {
+        guard let w = state.workout else { return }
+        let pos = state.workoutPosition
+        let i = pos?.index ?? w.steps.count
+        let target = forward ? i + 1 : ((pos?.offset ?? 0) > 5 ? i : i - 1)
+        state.workoutElapsed = w.stepStart(max(0, target))
+        driveWorkout()
+    }
+
+    private func driveWorkout() {
+        guard let w = state.workout, !state.workoutPaused else { return }
+        guard let pos = state.workoutPosition else {
+            Log.info("Workout complete: \(w.name)")
+            state.showToast("Workout complete · \(state.avgPower) W avg · NP \(state.normalizedPower)", seconds: 6)
+            stopWorkout()
+            return
+        }
+        let step = w.steps[pos.index]
+        let target = state.workoutTargetWatts(ftp: settings.ftpWatts)
+        if !state.timerRunning {
+            if let target { state.ergTarget = target }
+            return
+        }
+        if pos.index != lastWorkoutStep {
+            lastWorkoutStep = pos.index
+            Log.info("Workout step \(pos.index + 1)/\(w.steps.count) \(step.label) \(target.map { "\($0) W" } ?? "free") for \(Int(step.duration)) s")
+            if let target {
+                state.ergTarget = target
+                setErg(enabled: true)
+            } else if state.mode == .erg {
+                setErg(enabled: false)
+            }
+        } else if let target, target != state.ergTarget {
+            state.ergTarget = target
+            if state.mode == .erg { trainer?.setErg(watts: target) }
         }
     }
 
