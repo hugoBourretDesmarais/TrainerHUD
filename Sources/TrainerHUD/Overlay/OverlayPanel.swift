@@ -89,7 +89,7 @@ final class OverlayController {
         }, onQuit: { NSApp.terminate(nil) }, onToggleErg: { [weak session] in
             guard let session else { return }
             session.userSetErg(session.state.mode != .erg)
-        }))
+        }, onDrag: { [weak self] ended in self?.drag(ended: ended) }))
         host.sizingOptions = [.intrinsicContentSize]
         backdrop.frame = NSRect(origin: .zero, size: host.fittingSize)
         host.frame = backdrop.bounds
@@ -134,6 +134,16 @@ final class OverlayController {
         let origin = NSPoint(x: f.midX - size.width / 2, y: f.maxY - size.height)
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
         backdrop.cornerRadius = session.settings.overlayMode == .minimal ? size.height / 2 : 16 * CGFloat(session.settings.overlayScale)
+    }
+
+    private var dragStart: (mouse: NSPoint, origin: NSPoint)?
+
+    private func drag(ended: Bool) {
+        let mouse = NSEvent.mouseLocation
+        if dragStart == nil { dragStart = (mouse, panel.frame.origin) }
+        guard let s = dragStart else { return }
+        panel.setFrameOrigin(NSPoint(x: s.origin.x + mouse.x - s.mouse.x, y: s.origin.y + mouse.y - s.mouse.y))
+        if ended { dragStart = nil }
     }
 
     func reassert() {

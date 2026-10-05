@@ -6,6 +6,7 @@ struct HUDView: View {
     var controllerLabel: (String) -> String
     var onQuit: () -> Void = {}
     var onToggleErg: () -> Void = {}
+    var onDrag: (_ ended: Bool) -> Void = { _ in }
     @State private var hovering = false
     @State private var clock = Date()
     @State private var gearBump = false
@@ -59,7 +60,8 @@ struct HUDView: View {
         .padding(.horizontal, 16 * k)
         .padding(.vertical, 9 * k)
         .padding(.top, hovering ? 6 * k : 0)
-        .background(ZStack { chrome; WindowDragHandle() })
+        .background(chrome)
+        .gesture(windowDrag)
         .overlay(alignment: .topTrailing) { if hovering { toolbar } }
         .overlay(alignment: .top) {
             if hovering {
@@ -68,6 +70,12 @@ struct HUDView: View {
         }
         .fixedSize()
         .animation(.easeOut(duration: 0.15), value: hovering)
+    }
+
+    private var windowDrag: some Gesture {
+        DragGesture(minimumDistance: 1, coordinateSpace: .global)
+            .onChanged { _ in onDrag(false) }
+            .onEnded { _ in onDrag(true) }
     }
 
     private var chrome: some View {
@@ -365,12 +373,10 @@ struct HUDView: View {
         .padding(.horizontal, 14 * k)
         .padding(.vertical, 7 * k)
         .background(
-            ZStack {
-                Capsule().fill(Color.black.opacity(settings.overlayOpacity))
-                    .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 1))
-                WindowDragHandle()
-            }
+            Capsule().fill(Color.black.opacity(settings.overlayOpacity))
+                .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 1))
         )
+        .gesture(windowDrag)
         .fixedSize()
     }
 
@@ -394,16 +400,6 @@ struct HUDView: View {
         .buttonStyle(.plain)
         .help(help)
     }
-}
-
-private struct WindowDragHandle: NSViewRepresentable {
-    final class DragView: NSView {
-        override var mouseDownCanMoveWindow: Bool { true }
-        override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
-    }
-
-    func makeNSView(context: Context) -> NSView { DragView() }
-    func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
 private struct WorkoutProfile: View {
