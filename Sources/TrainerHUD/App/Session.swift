@@ -108,6 +108,17 @@ final class Session {
         }
     }
 
+    /// User intent: during a workout, ERG off holds until turned back on; on resumes the current step's target.
+    func userSetErg(_ enabled: Bool) {
+        state.ergHeldOff = state.workout != nil && !enabled
+        if enabled, let t = state.workoutTargetWatts(ftp: settings.ftpWatts) { state.ergTarget = t }
+        if enabled, state.workout != nil, state.workoutTargetWatts(ftp: settings.ftpWatts) == nil {
+            state.showToast("Free-ride step: ERG resumes at next step", seconds: 2)
+            return
+        }
+        setErg(enabled: enabled)
+    }
+
     func setErgTarget(_ watts: Int) {
         state.ergTarget = min(max(watts, 30), 1500)
         settings.ergTargetWatts = state.ergTarget
@@ -135,7 +146,7 @@ final class Session {
         case .resetRide: state.resetRide()
         case .toggleOverlay: overlay?.toggleVisible()
         case .minimizeOverlay: settings.overlayMode = settings.overlayMode.next
-        case .toggleErg: setErg(enabled: state.mode != .erg)
+        case .toggleErg: userSetErg(state.mode != .erg)
         case .ergUp: setErgTarget(state.ergTarget + 5)
         case .ergDown: setErgTarget(state.ergTarget - 5)
         case .workoutPause: toggleWorkoutPause()
@@ -171,6 +182,7 @@ final class Session {
         state.workout = w
         state.workoutElapsed = 0
         state.workoutPaused = false
+        state.ergHeldOff = false
         lastWorkoutStep = nil
         Log.info("Workout loaded: \(w.name), \(w.steps.count) steps, \(RideState.clock(w.totalDuration))")
         state.showToast("Workout: \(w.name) · \(RideState.clock(w.totalDuration)) · starts when you pedal", seconds: 4)
@@ -180,6 +192,7 @@ final class Session {
         dismissedWorkout = state.workout?.source
         state.workout = nil
         state.workoutElapsed = 0
+        state.ergHeldOff = false
         lastWorkoutStep = nil
         if state.mode == .erg { setErg(enabled: false) }
     }
@@ -220,7 +233,7 @@ final class Session {
             Log.info("Workout step \(pos.index + 1)/\(w.steps.count) \(step.label) \(target.map { "\($0) W" } ?? "free") for \(Int(step.duration)) s")
             if let target {
                 state.ergTarget = target
-                setErg(enabled: true)
+                if !state.ergHeldOff { setErg(enabled: true) }
             } else if state.mode == .erg {
                 setErg(enabled: false)
             }

@@ -34,8 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if arg.hasPrefix("+") || arg.hasPrefix("-"), let d = Double(arg) { session.setGrade(session.state.gradePercent + d) }
             else if let g = Double(arg) { session.setGrade(g) }
         case "erg":
-            if arg == "on" { session.setErg(enabled: true) }
-            else if arg == "off" { session.setErg(enabled: false) }
+            if arg == "on" { session.userSetErg(true) }
+            else if arg == "off" { session.userSetErg(false) }
             else if let w = Int(arg) { session.setErgTarget(w); session.setErg(enabled: true) }
         case "workout":
             switch arg {

@@ -86,7 +86,10 @@ final class OverlayController {
 
         let host = FittingHostingView(rootView: HUDView(state: session.state, settings: settings, controllerLabel: { [weak session] in
             session?.controllerLabel($0) ?? "Ctrl"
-        }, onQuit: { NSApp.terminate(nil) }))
+        }, onQuit: { NSApp.terminate(nil) }, onToggleErg: { [weak session] in
+            guard let session else { return }
+            session.userSetErg(session.state.mode != .erg)
+        }))
         host.sizingOptions = [.intrinsicContentSize]
         backdrop.frame = NSRect(origin: .zero, size: host.fittingSize)
         host.frame = backdrop.bounds

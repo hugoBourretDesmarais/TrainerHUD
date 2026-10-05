@@ -175,7 +175,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
     @objc private func gradeUp() { session.setGrade(session.state.gradePercent + 0.5) }
     @objc private func gradeDown() { session.setGrade(session.state.gradePercent - 0.5) }
     @objc private func gradeReset() { session.setGrade(0) }
-    @objc private func toggleErg() { session.setErg(enabled: session.state.mode != .erg) }
+    @objc private func toggleErg() { session.userSetErg(session.state.mode != .erg) }
     @objc private func ergUp() { session.setErgTarget(session.state.ergTarget + 5) }
     @objc private func ergDown() { session.setErgTarget(session.state.ergTarget - 5) }
     @objc private func toggleTimer() { session.perform(.toggleTimer) }

@@ -5,6 +5,7 @@ struct HUDView: View {
     @ObservedObject var settings: Settings
     var controllerLabel: (String) -> String
     var onQuit: () -> Void = {}
+    var onToggleErg: () -> Void = {}
     @State private var hovering = false
     @State private var clock = Date()
     @State private var gearBump = false
@@ -58,8 +59,7 @@ struct HUDView: View {
         .padding(.horizontal, 16 * k)
         .padding(.vertical, 9 * k)
         .padding(.top, hovering ? 6 * k : 0)
-        .background(chrome)
-        .overlay(WindowDragHandle())
+        .background(ZStack { chrome; WindowDragHandle() })
         .overlay(alignment: .topTrailing) { if hovering { toolbar } }
         .overlay(alignment: .top) {
             if hovering {
@@ -98,6 +98,21 @@ struct HUDView: View {
 
     private func unit(_ s: String) -> some View {
         Text(s).font(.system(size: 10 * k, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.5)).lineLimit(1).fixedSize()
+    }
+
+    private var ergToggle: some View {
+        let on = state.mode == .erg
+        return Button(action: onToggleErg) {
+            Text(on ? "ERG" : "SIM")
+                .font(.system(size: 8 * k, weight: .black, design: .rounded)).tracking(1)
+                .foregroundStyle(on ? Color.black.opacity(0.85) : .white.opacity(0.75))
+                .padding(.horizontal, 5 * k).padding(.vertical, 1.5 * k)
+                .background(Capsule().fill(on ? Color.orange : Color.white.opacity(0.15)))
+                .contentShape(Capsule())
+                .fixedSize()
+        }
+        .buttonStyle(.plain)
+        .help(on ? "ERG on — click to hold resistance and ride the targets yourself (⌃⇧E)" : "Click to turn ERG on (⌃⇧E)")
     }
 
     private var target: Int? { state.workoutTargetWatts(ftp: settings.ftpWatts) }
@@ -172,8 +187,9 @@ struct HUDView: View {
         return VStack(alignment: .leading, spacing: 2 * k) {
             HStack(spacing: 5 * k) {
                 label("POWER")
+                ergToggle
                 if let t = target { label("→ \(t)W", color: state.mode == .erg ? .orange : .white.opacity(0.8)) }
-                else if state.mode == .erg { label("ERG \(state.ergTarget)W", color: .orange) }
+                else if state.mode == .erg { label("\(state.ergTarget)W", color: .orange) }
                 else if zone.index > 0 { label("Z\(zone.index)", color: zone.color) }
             }
             HStack(alignment: .firstTextBaseline, spacing: 3 * k) {

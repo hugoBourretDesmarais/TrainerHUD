@@ -41,6 +41,7 @@ final class RideState: ObservableObject {
     @Published var workout: Workout?
     @Published var workoutElapsed: TimeInterval = 0
     @Published var workoutPaused = false
+    @Published var ergHeldOff = false
     @Published var lastShift: (up: Bool, at: Date)?
     @Published var toast: String?
 
