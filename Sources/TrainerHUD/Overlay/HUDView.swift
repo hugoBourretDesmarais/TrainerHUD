@@ -167,6 +167,7 @@ struct HUDView: View {
                     HStack(spacing: 6 * k) {
                         label(w.name.uppercased(), color: .white.opacity(0.7))
                         label("\(RideState.clock(max(0, w.totalDuration - state.workoutElapsed))) LEFT")
+                        label("FTP \(settings.ftpWatts)", color: settings.ftpWatts == 200 ? .orange : .white.opacity(0.35))
                     }
                     WorkoutProfile(workout: w, elapsed: state.workoutElapsed, k: k)
                         .frame(width: 380 * k, height: 34 * k)

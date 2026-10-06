@@ -33,6 +33,10 @@ final class Session {
     private func tick() {
         state.tick()
         driveWorkout()
+        if state.timerRunning, Int(state.elapsed) % 10 == 0, state.power > 0 || state.cadence > 0 {
+            let target = state.workoutTargetWatts(ftp: settings.ftpWatts).map { " target=\($0)" } ?? ""
+            Log.info("Ride \(state.elapsedString) power=\(state.power) 3s=\(state.power3s) src=\(state.powerSource) cad=\(state.cadence) hr=\(state.heartRate) mode=\(state.mode.rawValue)\(target) ftp=\(settings.ftpWatts)")
+        }
         let now = Date()
         for (_, c) in controllers where c.checkStall(now: now) {
             if state.controllerStatuses[c.id.uuidString] != .stalled {
