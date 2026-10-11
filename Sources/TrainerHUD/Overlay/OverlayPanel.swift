@@ -89,7 +89,7 @@ final class OverlayController {
         }, onQuit: { NSApp.terminate(nil) }, onToggleErg: { [weak session] in
             guard let session else { return }
             session.userSetErg(session.state.mode != .erg)
-        }, onDrag: { [weak self] ended in self?.drag(ended: ended) }))
+        }, onDrag: { [weak self] ended in self?.drag(ended: ended) }, onNudge: { [weak session] in session?.nudge(harder: $0) }))
         host.sizingOptions = [.intrinsicContentSize]
         backdrop.frame = NSRect(origin: .zero, size: host.fittingSize)
         host.frame = backdrop.bounds

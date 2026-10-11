@@ -12,8 +12,8 @@ final class HotKeys {
     }
 
     static let bindings: [Binding] = [
-        .init(keyCode: kVK_UpArrow, key: String(UnicodeScalar(NSUpArrowFunctionKey)!), action: .shiftUp),
-        .init(keyCode: kVK_DownArrow, key: String(UnicodeScalar(NSDownArrowFunctionKey)!), action: .shiftDown),
+        .init(keyCode: kVK_UpArrow, key: String(UnicodeScalar(NSUpArrowFunctionKey)!), action: .harder),
+        .init(keyCode: kVK_DownArrow, key: String(UnicodeScalar(NSDownArrowFunctionKey)!), action: .easier),
         .init(keyCode: kVK_RightArrow, key: String(UnicodeScalar(NSRightArrowFunctionKey)!), action: .workoutSkip),
         .init(keyCode: kVK_LeftArrow, key: String(UnicodeScalar(NSLeftArrowFunctionKey)!), action: .workoutBack),
         .init(keyCode: kVK_Space, key: " ", action: .workoutPause),

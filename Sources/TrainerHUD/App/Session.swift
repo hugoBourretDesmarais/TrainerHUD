@@ -123,6 +123,22 @@ final class Session {
         setErg(enabled: enabled)
     }
 
+    /// Overlay +/− and ⌃⇧↑/↓: shift in SIM; in ERG move the target (as a bias that survives workout steps).
+    func nudge(harder: Bool) {
+        defer { Log.info("Nudge \(harder ? "harder" : "easier") → mode=\(state.mode.rawValue) gear=\(state.gearIndex + 1) erg=\(state.ergTarget) bias=\(state.ergBias)") }
+        guard state.mode == .erg else { shift(up: harder); return }
+        if state.workout != nil, state.workoutTargetWatts(ftp: settings.ftpWatts) != nil {
+            state.ergBias += harder ? 5 : -5
+            let t = state.workoutTargetWatts(ftp: settings.ftpWatts)!
+            state.ergTarget = t
+            trainer?.setErg(watts: t)
+            state.showToast("ERG \(t) W (\(state.ergBias >= 0 ? "+" : "")\(state.ergBias))", seconds: 1.2)
+        } else {
+            setErgTarget(state.ergTarget + (harder ? 5 : -5))
+            state.showToast("ERG \(state.ergTarget) W", seconds: 1.2)
+        }
+    }
+
     func setErgTarget(_ watts: Int) {
         state.ergTarget = min(max(watts, 30), 1500)
         settings.ergTargetWatts = state.ergTarget
@@ -156,6 +172,8 @@ final class Session {
         case .workoutPause: toggleWorkoutPause()
         case .workoutSkip: skipWorkoutStep(forward: true)
         case .workoutBack: skipWorkoutStep(forward: false)
+        case .harder: nudge(harder: true)
+        case .easier: nudge(harder: false)
         }
     }
 
@@ -187,6 +205,7 @@ final class Session {
         state.workoutElapsed = 0
         state.workoutPaused = false
         state.ergHeldOff = false
+        state.ergBias = 0
         lastWorkoutStep = nil
         Log.info("Workout loaded: \(w.name), \(w.steps.count) steps, \(RideState.clock(w.totalDuration))")
         state.showToast("Workout: \(w.name) · \(RideState.clock(w.totalDuration)) · starts when you pedal", seconds: 4)

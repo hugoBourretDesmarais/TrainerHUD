@@ -34,8 +34,8 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(header)
         menu.addItem(.separator())
 
-        menu.addItem(hot("Shift Up", #selector(shiftUp), .shiftUp))
-        menu.addItem(hot("Shift Down", #selector(shiftDown), .shiftDown))
+        menu.addItem(hot(s.mode == .erg ? "Harder  (ERG +5 W)" : "Harder  (shift up)", #selector(shiftUp), .harder))
+        menu.addItem(hot(s.mode == .erg ? "Easier  (ERG −5 W)" : "Easier  (shift down)", #selector(shiftDown), .easier))
         menu.addItem(hot(String(format: "Grade %+.1f%%  →  +0.5", s.gradePercent), #selector(gradeUp), .gradeUp))
         menu.addItem(hot("Grade  −0.5", #selector(gradeDown), .gradeDown))
         menu.addItem(make("Grade  0%", #selector(gradeReset), key: "0", mask: [.command]))
@@ -170,8 +170,8 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         return i
     }
 
-    @objc private func shiftUp() { session.shift(up: true) }
-    @objc private func shiftDown() { session.shift(up: false) }
+    @objc private func shiftUp() { session.nudge(harder: true) }
+    @objc private func shiftDown() { session.nudge(harder: false) }
     @objc private func gradeUp() { session.setGrade(session.state.gradePercent + 0.5) }
     @objc private func gradeDown() { session.setGrade(session.state.gradePercent - 0.5) }
     @objc private func gradeReset() { session.setGrade(0) }

@@ -42,6 +42,7 @@ final class RideState: ObservableObject {
     @Published var workoutElapsed: TimeInterval = 0
     @Published var workoutPaused = false
     @Published var ergHeldOff = false
+    @Published var ergBias = 0
     @Published var lastShift: (up: Bool, at: Date)?
     @Published var toast: String?
 
@@ -147,6 +148,6 @@ final class RideState: ObservableObject {
 
     func workoutTargetWatts(ftp: Int) -> Int? {
         guard let w = workout, let p = workoutPosition, !w.steps[p.index].isFree else { return nil }
-        return Int((w.steps[p.index].fraction(at: p.offset) * Double(ftp)).rounded())
+        return max(30, Int((w.steps[p.index].fraction(at: p.offset) * Double(ftp)).rounded()) + ergBias)
     }
 }

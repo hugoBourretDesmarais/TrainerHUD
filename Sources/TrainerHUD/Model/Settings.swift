@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 enum ButtonAction: String, CaseIterable, Codable {
-    case none, shiftUp, shiftDown, gradeUp, gradeDown, gradeReset, toggleTimer, resetRide, toggleOverlay, minimizeOverlay, toggleErg, ergUp, ergDown, workoutPause, workoutSkip, workoutBack
+    case none, shiftUp, shiftDown, gradeUp, gradeDown, gradeReset, toggleTimer, resetRide, toggleOverlay, minimizeOverlay, toggleErg, ergUp, ergDown, workoutPause, workoutSkip, workoutBack, harder, easier
 
     var label: String {
         switch self {
@@ -22,6 +22,8 @@ enum ButtonAction: String, CaseIterable, Codable {
         case .workoutPause: return "Workout start / pause"
         case .workoutSkip: return "Workout next step"
         case .workoutBack: return "Workout previous step"
+        case .harder: return "Harder (shift up, or ERG +5 W)"
+        case .easier: return "Easier (shift down, or ERG −5 W)"
         }
     }
 }

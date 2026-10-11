@@ -7,6 +7,7 @@ struct HUDView: View {
     var onQuit: () -> Void = {}
     var onToggleErg: () -> Void = {}
     var onDrag: (_ ended: Bool) -> Void = { _ in }
+    var onNudge: (_ harder: Bool) -> Void = { _ in }
     @State private var hovering = false
     @State private var clock = Date()
     @State private var gearBump = false
@@ -39,22 +40,27 @@ struct HUDView: View {
                 if settings.showCadence { cadenceCell; divider }
                 if settings.showGear { gearCell; divider }
                 if settings.showGrade { gradeCell; divider }
-                if settings.showSpeed { smallCell(label: "SPEED", value: String(format: "%.1f", state.speedKmh), unit: "km/h") }
-                if settings.showDistance { smallCell(label: "DIST", value: String(format: "%.1f", state.distanceKm), unit: "km") }
-                if settings.showTime { smallCell(label: state.timerRunning ? "TIME" : "PAUSED", value: state.elapsedString, unit: "", dim: !state.timerRunning) }
+                if settings.showSpeed { smallCell(label: "SPEED", value: String(format: "%.1f", state.speedKmh), unit: "km/h", reserve: "88.8") }
+                if settings.showDistance { smallCell(label: "DIST", value: String(format: "%.1f", state.distanceKm), unit: "km", reserve: "88.8") }
+                if settings.showTime { smallCell(label: state.timerRunning ? "TIME" : "PAUSED", value: state.elapsedString, unit: "", dim: !state.timerRunning, reserve: "88:88") }
                 if settings.showResistance, let r = state.resistance { smallCell(label: "RES", value: "\(r)", unit: "") }
-                if settings.showClock { smallCell(label: "CLOCK", value: clockString, unit: "", dim: true) }
+                if settings.showClock { smallCell(label: "CLOCK", value: clockString, unit: "", dim: true, reserve: "88:88") }
                 statusColumn.padding(.leading, 10 * k).frame(height: cellHeight, alignment: .top)
             }
             if settings.overlayMode == .full { fullRow.padding(.top, 6 * k) }
+        }
+        .overlay(alignment: .bottom) {
             if let toast = state.toast {
                 Text(toast)
                     .font(.system(size: 10.5 * k, weight: .semibold, design: .rounded))
                     .foregroundStyle(.black.opacity(0.85))
+                    .lineLimit(1).fixedSize()
                     .padding(.horizontal, 8 * k).padding(.vertical, 2.5 * k)
                     .background(Capsule().fill(Color(hue: 0.13, saturation: 0.9, brightness: 1)))
-                    .padding(.top, 5 * k)
+                    .shadow(color: .black.opacity(0.5), radius: 4 * k)
+                    .offset(y: 4 * k)
                     .transition(.opacity)
+                    .allowsHitTesting(false)
             }
         }
         .padding(.horizontal, 16 * k)
@@ -99,9 +105,18 @@ struct HUDView: View {
         Text(s).font(.system(size: 8.5 * k, weight: .bold, design: .rounded)).tracking(1.4).foregroundStyle(color).lineLimit(1).fixedSize()
     }
 
-    private func big(_ s: String, size: CGFloat, color: Color = .white) -> some View {
-        Text(s).font(.system(size: size * k, weight: .heavy, design: .rounded)).monospacedDigit()
+    /// Reserves the width of `reserve` (e.g. "888") so the overlay doesn't resize when a value gains a digit.
+    private func big(_ s: String, size: CGFloat, color: Color = .white, reserve: String = "") -> some View {
+        fixedWidth(s, reserve: reserve)
+            .font(.system(size: size * k, weight: .heavy, design: .rounded)).monospacedDigit()
             .foregroundStyle(color).lineLimit(1).fixedSize()
+    }
+
+    private func fixedWidth(_ s: String, reserve: String) -> some View {
+        ZStack(alignment: .leading) {
+            Text(reserve).hidden()
+            Text(s)
+        }
     }
 
     private func unit(_ s: String) -> some View {
@@ -148,7 +163,7 @@ struct HUDView: View {
                 else if !state.timerRunning { label("PEDAL TO START", color: .white.opacity(0.35)) }
             }
             HStack(alignment: .firstTextBaseline, spacing: 3 * k) {
-                big(RideState.clock(remaining), size: 30, color: state.workoutPaused ? .white.opacity(0.4) : color)
+                big(RideState.clock(remaining), size: 30, color: state.workoutPaused ? .white.opacity(0.4) : color, reserve: "88:88")
                 if let next {
                     unit("then \(next.isFree ? "free" : "\(Int((next.start * Double(settings.ftpWatts)).rounded()))W") · \(RideState.clock(next.duration))")
                 }
@@ -182,11 +197,11 @@ struct HUDView: View {
                 .frame(height: 46 * k, alignment: .top)
                 divider
             }
-            smallCell(label: "AVG", value: "\(state.avgPower)", unit: "W")
-            smallCell(label: "NP", value: state.normalizedPower > 0 ? "\(state.normalizedPower)" : "—", unit: "W")
-            smallCell(label: "WORK", value: "\(Int(state.kilojoules))", unit: "kJ")
-            if !settings.showDistance { smallCell(label: "DIST", value: String(format: "%.1f", state.distanceKm), unit: "km") }
-            smallCell(label: "AVG HR", value: state.avgHeartRate > 0 ? "\(state.avgHeartRate)" : "—", unit: "bpm")
+            smallCell(label: "AVG", value: "\(state.avgPower)", unit: "W", reserve: "888")
+            smallCell(label: "NP", value: state.normalizedPower > 0 ? "\(state.normalizedPower)" : "—", unit: "W", reserve: "888")
+            smallCell(label: "WORK", value: "\(Int(state.kilojoules))", unit: "kJ", reserve: "8888")
+            if !settings.showDistance { smallCell(label: "DIST", value: String(format: "%.1f", state.distanceKm), unit: "km", reserve: "88.8") }
+            smallCell(label: "AVG HR", value: state.avgHeartRate > 0 ? "\(state.avgHeartRate)" : "—", unit: "bpm", reserve: "888")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -202,7 +217,7 @@ struct HUDView: View {
                 else if zone.index > 0 { label("Z\(zone.index)", color: zone.color) }
             }
             HStack(alignment: .firstTextBaseline, spacing: 3 * k) {
-                big("\(state.power3s)", size: 34, color: target.map { Self.compliance(state.power3s, target: $0) } ?? .white)
+                big("\(state.power3s)", size: 34, color: target.map { Self.compliance(state.power3s, target: $0) } ?? .white, reserve: "888")
                 unit("W")
             }
             .fixedSize()
@@ -222,7 +237,7 @@ struct HUDView: View {
                 if zone.index > 0 { label("Z\(zone.index)", color: zone.color) }
             }
             HStack(alignment: .firstTextBaseline, spacing: 3 * k) {
-                big(state.heartRate > 0 ? "\(state.heartRate)" : "—", size: 30, color: state.heartRate > 0 ? zone.color : .white.opacity(0.3))
+                big(state.heartRate > 0 ? "\(state.heartRate)" : "—", size: 30, color: state.heartRate > 0 ? zone.color : .white.opacity(0.3), reserve: "888")
                 unit("bpm")
             }
         }
@@ -233,7 +248,7 @@ struct HUDView: View {
         VStack(alignment: .leading, spacing: 2 * k) {
             label("CADENCE")
             HStack(alignment: .firstTextBaseline, spacing: 3 * k) {
-                big("\(state.cadence)", size: 30, color: state.cadence == 0 ? .white.opacity(0.35) : .white)
+                big("\(state.cadence)", size: 30, color: state.cadence == 0 ? .white.opacity(0.35) : .white, reserve: "888")
                 unit("rpm")
             }
         }
@@ -250,14 +265,31 @@ struct HUDView: View {
                 if !state.trainerHasZwiftProtocol, state.trainerStatus == .ready { label("FTMS", color: .orange.opacity(0.8)) }
             }
             HStack(alignment: .center, spacing: 8 * k) {
-                Text(String(state.gearIndex + 1))
+                fixedWidth(String(state.gearIndex + 1), reserve: "88")
                     .font(.system(size: 40 * k, weight: .heavy, design: .rounded))
                     .foregroundStyle(recent ? Color.white : accent)
                     .fixedSize()
                 GearLadder(index: state.gearIndex, count: state.gearCount, accent: accent, k: k)
+                VStack(spacing: 3 * k) {
+                    nudgeButton(harder: true, size: 20)
+                    nudgeButton(harder: false, size: 20)
+                }
             }
         }
         .frame(height: cellHeight, alignment: .top)
+    }
+
+    private func nudgeButton(harder: Bool, size: CGFloat) -> some View {
+        Button { onNudge(harder) } label: {
+            Image(systemName: harder ? "plus" : "minus")
+                .font(.system(size: size * 0.5 * k, weight: .black))
+                .foregroundStyle(.white.opacity(0.9))
+                .frame(width: size * k, height: size * k)
+                .background(Circle().fill(.white.opacity(0.16)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(harder ? (state.mode == .erg ? "ERG +5 W (⌃⇧↑)" : "Shift up (⌃⇧↑)") : (state.mode == .erg ? "ERG −5 W (⌃⇧↓)" : "Shift down (⌃⇧↓)"))
     }
 
     private var gradeCell: some View {
@@ -268,18 +300,18 @@ struct HUDView: View {
             HStack(alignment: .firstTextBaseline, spacing: 3 * k) {
                 Image(systemName: g > 0.05 ? "arrow.up.right" : (g < -0.05 ? "arrow.down.right" : "arrow.right"))
                     .font(.system(size: 12 * k, weight: .black)).foregroundStyle(color.opacity(0.85))
-                big(String(format: "%.1f", abs(g)), size: 24, color: color)
+                big(String(format: "%.1f", abs(g)), size: 24, color: color, reserve: "88.8")
                 unit("%")
             }
         }
         .frame(height: cellHeight, alignment: .top)
     }
 
-    private func smallCell(label l: String, value: String, unit u: String, dim: Bool = false) -> some View {
+    private func smallCell(label l: String, value: String, unit u: String, dim: Bool = false, reserve: String = "") -> some View {
         VStack(alignment: .leading, spacing: 2 * k) {
             label(l)
             HStack(alignment: .firstTextBaseline, spacing: 3 * k) {
-                big(value, size: 22, color: dim ? .white.opacity(0.6) : .white)
+                big(value, size: 22, color: dim ? .white.opacity(0.6) : .white, reserve: reserve)
                 if !u.isEmpty { unit(u) }
             }
         }
@@ -331,36 +363,38 @@ struct HUDView: View {
         return HStack(spacing: 12 * k) {
             if settings.showGear {
                 HStack(spacing: 4 * k) {
-                    Text("\(state.gearIndex + 1)").foregroundStyle(Color(hue: 0.52, saturation: 0.85, brightness: 1))
+                    fixedWidth("\(state.gearIndex + 1)", reserve: "88").foregroundStyle(Color(hue: 0.52, saturation: 0.85, brightness: 1))
                         .scaleEffect(gearBump ? 1.15 : 1)
                     GearLadder(index: state.gearIndex, count: state.gearCount, accent: Color(hue: 0.52, saturation: 0.85, brightness: 1), k: k * 0.6)
+                    nudgeButton(harder: false, size: 16)
+                    nudgeButton(harder: true, size: 16)
                 }
             }
             if settings.showPower {
                 HStack(alignment: .firstTextBaseline, spacing: 2 * k) {
-                    Text("\(state.power3s)").foregroundStyle(target.map { Self.compliance(state.power3s, target: $0) } ?? (pz.index > 0 ? pz.color : .white))
+                    fixedWidth("\(state.power3s)", reserve: "888").foregroundStyle(target.map { Self.compliance(state.power3s, target: $0) } ?? (pz.index > 0 ? pz.color : .white))
                     Text(target.map { "/\($0) W" } ?? "W").font(.system(size: 9 * k, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.5))
                 }
             }
             if let w = state.workout, let pos = state.workoutPosition {
                 HStack(alignment: .firstTextBaseline, spacing: 3 * k) {
-                    Text(RideState.clock(w.steps[pos.index].duration - pos.offset)).foregroundStyle(.white.opacity(state.workoutPaused ? 0.4 : 0.9))
+                    fixedWidth(RideState.clock(w.steps[pos.index].duration - pos.offset), reserve: "88:88").foregroundStyle(.white.opacity(state.workoutPaused ? 0.4 : 0.9))
                     Text("\(pos.index + 1)/\(w.steps.count)").font(.system(size: 9 * k, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.5))
                 }
             }
             if settings.showHeartRate {
                 HStack(spacing: 3 * k) {
                     Image(systemName: "heart.fill").font(.system(size: 9 * k)).foregroundStyle(hz.color)
-                    Text(state.heartRate > 0 ? "\(state.heartRate)" : "—").foregroundStyle(state.heartRate > 0 ? hz.color : .white.opacity(0.35))
+                    fixedWidth(state.heartRate > 0 ? "\(state.heartRate)" : "—", reserve: "888").foregroundStyle(state.heartRate > 0 ? hz.color : .white.opacity(0.35))
                 }
             }
             if settings.showCadence {
                 HStack(alignment: .firstTextBaseline, spacing: 2 * k) {
-                    Text("\(state.cadence)").foregroundStyle(.white.opacity(0.85))
+                    fixedWidth("\(state.cadence)", reserve: "888").foregroundStyle(.white.opacity(0.85))
                     Text("rpm").font(.system(size: 9 * k, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.5))
                 }
             }
-            if settings.showTime { Text(state.elapsedString).foregroundStyle(.white.opacity(0.7)) }
+            if settings.showTime { fixedWidth(state.elapsedString, reserve: "88:88").foregroundStyle(.white.opacity(0.7)) }
             Button { settings.overlayMode = .standard } label: {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 9 * k, weight: .black))

@@ -32,7 +32,7 @@ Needs macOS 14+ and the Xcode Command Line Tools. Allow Bluetooth when asked.
 ## Use
 
 1. Quit Zwift. Pedal, press a Click button, put the strap on.
-2. Shift with the Clicks, or with global hotkeys from any app: ⌃⇧↑ ⌃⇧↓ shift, ⌃⇧= ⌃⇧- grade, ⌃⇧E ERG,
+2. Shift with the Clicks, or with global hotkeys from any app: ⌃⇧↑ ⌃⇧↓ harder/easier (shift in SIM, ±5 W in ERG), ⌃⇧= ⌃⇧- grade, ⌃⇧E ERG,
    ⌃⇧M cycle Minimal / Standard / Full, ⌃⇧H hide. Workouts: ⌃⇧→ ⌃⇧← step, ⌃⇧Space pause.
 3. Hover the overlay for the minimize button. Drag it by its background.
 
