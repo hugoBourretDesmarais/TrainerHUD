@@ -68,6 +68,25 @@ final class BLEManager: NSObject, CBCentralManagerDelegate {
 
     func stopScanning() { central.stopScan() }
 
+    /// Diagnostic: unfiltered scan that logs every advertiser, then returns to the normal filtered scan.
+    func scanAll(seconds: TimeInterval) {
+        guard central.state == .poweredOn else { return }
+        central.stopScan()
+        scanAllUntil = Date().addingTimeInterval(seconds)
+        central.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
+        Log.info("Scan-all for \(Int(seconds)) s")
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
+            guard let self else { return }
+            self.scanAllUntil = nil
+            Log.info("Scan-all done")
+            self.central.stopScan()
+            self.startScanning()
+        }
+    }
+
+    private var scanAllUntil: Date?
+    private var scanAllLogged: Set<UUID> = []
+
     private func reconnectRemembered() {
         let s = session.settings
         guard s.autoConnect else { return }
@@ -99,6 +118,13 @@ final class BLEManager: NSObject, CBCentralManagerDelegate {
         let isNew = discovered[peripheral.identifier] == nil
         discovered[peripheral.identifier] = DiscoveredDevice(peripheral: peripheral, name: name, rssi: RSSI.intValue,
                                                              services: services, zwiftType: zType, lastSeen: Date())
+        if scanAllUntil != nil, !scanAllLogged.contains(peripheral.identifier) || (adName != nil && isNew) {
+            scanAllLogged.insert(peripheral.identifier)
+            let md = (advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data)?.hexString ?? "-"
+            let sd = (advertisementData[CBAdvertisementDataServiceDataKey] as? [CBUUID: Data])?.map { "\($0.key.uuidString)=\($0.value.hexString)" }.joined(separator: ",") ?? "-"
+            let conn = (advertisementData[CBAdvertisementDataIsConnectable] as? Bool).map { $0 ? "yes" : "no" } ?? "?"
+            Log.info("ScanAll \(name) [\(peripheral.identifier.uuidString)] rssi=\(RSSI) services=\(services.map(\.uuidString).sorted()) mfg=\(md) sdata=\(sd) connectable=\(conn)")
+        }
         if isNew {
             let md = (advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data)?.hexString ?? "-"
             Log.info("Found \(name) [\(peripheral.identifier.uuidString)] rssi=\(RSSI) services=\(services.map(\.uuidString).sorted()) mfg=\(md) zwift=\(zType?.label ?? "-")")

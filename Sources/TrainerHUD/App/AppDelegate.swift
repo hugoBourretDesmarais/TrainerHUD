@@ -47,6 +47,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             default:
                 if arg.hasPrefix("load/") { session.loadWorkout(URL(fileURLWithPath: "/" + arg.dropFirst(5).trimmingCharacters(in: CharacterSet(charactersIn: "/")))) }
             }
+        case "debug":
+            if arg.hasPrefix("scan-all") { session.ble.scanAll(seconds: Double(arg.split(separator: "/").last.flatMap { Double($0) } ?? 30)) }
         case "timer": session.perform(.toggleTimer)
         case "ride": session.state.resetRide()
         case "overlay":
