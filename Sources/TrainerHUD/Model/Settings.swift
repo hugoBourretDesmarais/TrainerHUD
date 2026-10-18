@@ -19,7 +19,7 @@ enum ButtonAction: String, CaseIterable, Codable {
         case .toggleErg: return "Toggle ERG mode"
         case .ergUp: return "ERG target +5 W"
         case .ergDown: return "ERG target −5 W"
-        case .workoutPause: return "Workout start / pause"
+        case .workoutPause: return "Pause / resume ride"
         case .workoutSkip: return "Workout next step"
         case .workoutBack: return "Workout previous step"
         case .harder: return "Harder (shift up, or ERG +5 W)"

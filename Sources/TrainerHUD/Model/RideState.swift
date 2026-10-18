@@ -89,9 +89,9 @@ final class RideState: ObservableObject {
         lastTick = now
         let active = now.timeIntervalSince(lastActivity) < 5
         if active && !timerRunning && elapsed == 0 { timerRunning = true }
-        if timerRunning && active {
+        if timerRunning && active && !workoutPaused {
             elapsed += dt
-            if workout != nil && !workoutPaused { workoutElapsed += dt }
+            if workout != nil { workoutElapsed += dt }
             npWindow.append(power)
             if npWindow.count > 30 { npWindow.removeFirst() }
             if npWindow.count == 30 {

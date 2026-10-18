@@ -8,6 +8,7 @@ struct HUDView: View {
     var onToggleErg: () -> Void = {}
     var onDrag: (_ ended: Bool) -> Void = { _ in }
     var onNudge: (_ harder: Bool) -> Void = { _ in }
+    var onPause: () -> Void = {}
     @State private var hovering = false
     @State private var clock = Date()
     @State private var gearBump = false
@@ -42,7 +43,7 @@ struct HUDView: View {
                 if settings.showGrade { gradeCell; divider }
                 if settings.showSpeed { smallCell(label: "SPEED", value: String(format: "%.1f", state.speedKmh), unit: "km/h", reserve: "88.8") }
                 if settings.showDistance { smallCell(label: "DIST", value: String(format: "%.1f", state.distanceKm), unit: "km", reserve: "88.8") }
-                if settings.showTime { smallCell(label: state.timerRunning ? "TIME" : "PAUSED", value: state.elapsedString, unit: "", dim: !state.timerRunning, reserve: "88:88") }
+                if settings.showTime { smallCell(label: state.workoutPaused ? "PAUSED" : (state.timerRunning ? "TIME" : "READY"), value: state.elapsedString, unit: "", dim: state.workoutPaused || !state.timerRunning, reserve: "88:88") }
                 if settings.showResistance, let r = state.resistance { smallCell(label: "RES", value: "\(r)", unit: "") }
                 if settings.showClock { smallCell(label: "CLOCK", value: clockString, unit: "", dim: true, reserve: "88:88") }
                 statusColumn.padding(.leading, 10 * k).frame(height: cellHeight, alignment: .top)
@@ -113,7 +114,7 @@ struct HUDView: View {
     }
 
     private func fixedWidth(_ s: String, reserve: String) -> some View {
-        ZStack(alignment: .leading) {
+        ZStack(alignment: .trailing) {
             Text(reserve).hidden()
             Text(s)
         }
@@ -157,6 +158,7 @@ struct HUDView: View {
         let color = step.map { $0.isFree ? Color.white : Zones.power(Int($0.fraction(at: pos!.offset) * 100), ftp: 100).color } ?? .white
         return VStack(alignment: .leading, spacing: 2 * k) {
             HStack(spacing: 5 * k) {
+                pauseButton(size: 15)
                 label("STEP \((pos?.index ?? w.steps.count - 1) + 1)/\(w.steps.count)")
                 if let step { label(step.label.uppercased(), color: color) }
                 if state.workoutPaused { label("PAUSED", color: .orange) }
@@ -279,6 +281,20 @@ struct HUDView: View {
         .frame(height: cellHeight, alignment: .top)
     }
 
+    private func pauseButton(size: CGFloat) -> some View {
+        let paused = state.workoutPaused
+        return Button(action: onPause) {
+            Image(systemName: paused ? "play.fill" : "pause.fill")
+                .font(.system(size: size * 0.5 * k, weight: .black))
+                .foregroundStyle(paused ? Color.black.opacity(0.85) : .white.opacity(0.9))
+                .frame(width: size * k, height: size * k)
+                .background(Circle().fill(paused ? Color.orange : .white.opacity(0.16)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(paused ? "Resume (⌃⇧Space)" : "Pause ride and workout (⌃⇧Space)")
+    }
+
     private func nudgeButton(harder: Bool, size: CGFloat) -> some View {
         Button { onNudge(harder) } label: {
             Image(systemName: harder ? "plus" : "minus")
@@ -394,7 +410,8 @@ struct HUDView: View {
                     Text("rpm").font(.system(size: 9 * k, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.5))
                 }
             }
-            if settings.showTime { fixedWidth(state.elapsedString, reserve: "88:88").foregroundStyle(.white.opacity(0.7)) }
+            if settings.showTime { fixedWidth(state.elapsedString, reserve: "88:88").foregroundStyle(.white.opacity(state.workoutPaused ? 0.35 : 0.7)) }
+            pauseButton(size: 16)
             Button { settings.overlayMode = .standard } label: {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 9 * k, weight: .black))

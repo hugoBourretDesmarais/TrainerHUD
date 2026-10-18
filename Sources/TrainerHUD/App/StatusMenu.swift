@@ -47,7 +47,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         }
         menu.addItem(.separator())
 
-        menu.addItem(make(s.timerRunning ? "Pause Timer" : "Resume Timer", #selector(toggleTimer), key: "p", mask: [.command]))
+        menu.addItem(hot(s.workoutPaused ? "Resume Ride" : "Pause Ride", #selector(workoutPause), .workoutPause))
         menu.addItem(make("Reset Ride", #selector(resetRide), key: "r", mask: [.command, .shift]))
         menu.addItem(.separator())
 

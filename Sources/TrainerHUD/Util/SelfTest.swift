@@ -27,6 +27,12 @@ enum SelfTest {
             check("zwo end", wo.position(at: wo.totalDuration) == nil)
             let rs = RideState(); rs.workout = wo; rs.workoutElapsed = 600 + 5
             check("zwo target", rs.workoutTargetWatts(ftp: 250) == 300, "\(String(describing: rs.workoutTargetWatts(ftp: 250)))")
+            rs.timerRunning = true; rs.updatePower(200, source: "test"); rs.workoutPaused = true
+            let e0 = rs.elapsed, w0 = rs.workoutElapsed
+            Thread.sleep(forTimeInterval: 0.05); rs.tick()
+            check("pause freezes", rs.elapsed == e0 && rs.workoutElapsed == w0)
+            rs.workoutPaused = false; Thread.sleep(forTimeInterval: 0.05); rs.tick()
+            check("resume runs", rs.elapsed > e0 && rs.workoutElapsed > w0)
         }
 
         let gear = ZwiftMessages.gear(ratioX10000: 24000)

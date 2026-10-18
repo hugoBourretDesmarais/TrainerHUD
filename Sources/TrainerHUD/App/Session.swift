@@ -220,12 +220,24 @@ final class Session {
         if state.mode == .erg { setErg(enabled: false) }
     }
 
+    private var ergBeforePause = false
+
+    /// Freezes ride time, workout time and averages, and releases ERG; resume restores ERG at the current target.
     func toggleWorkoutPause() {
-        guard state.workout != nil else { return }
         state.workoutPaused.toggle()
-        state.showToast(state.workoutPaused ? "Workout paused" : "Workout resumed", seconds: 1.5)
-        if state.workoutPaused, state.mode == .erg { setErg(enabled: false) }
-        if !state.workoutPaused { lastWorkoutStep = nil }
+        Log.info(state.workoutPaused ? "Paused" : "Resumed")
+        if state.workoutPaused {
+            ergBeforePause = state.mode == .erg
+            if ergBeforePause { setErg(enabled: false) }
+            state.showToast("Paused · ⌃⇧Space to resume", seconds: 2)
+        } else {
+            state.showToast("Resumed", seconds: 1.5)
+            if ergBeforePause, !state.ergHeldOff {
+                if let t = state.workoutTargetWatts(ftp: settings.ftpWatts) { state.ergTarget = t }
+                setErg(enabled: true)
+            }
+            lastWorkoutStep = state.workoutPosition?.index
+        }
     }
 
     func skipWorkoutStep(forward: Bool) {
